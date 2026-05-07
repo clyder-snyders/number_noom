@@ -1,0 +1,1585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Number Nook - Guess & Puzzle</title>
+    <style>
+        :root {
+            --bg: #fef9f3;
+            --card: #fffdf8;
+            --accent: #e8937c;
+            --accent2: #d4a574;
+            --green: #a3b899;
+            --lavender: #b8a9c9;
+            --text: #4a3728;
+            --text-light: #6b5d4f;
+            --shadow: 0 4px 20px rgba(74, 55, 40, 0.08);
+            --shadow-lg: 0 8px 40px rgba(74, 55, 40, 0.12);
+            --radius: 20px;
+            --radius-sm: 12px;
+            --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            --cell-size: clamp(48px, 9vw, 64px);
+            --transition: 0.4s cubic-bezier(0.25, 0.8, 0.25, 1.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font);
+            background: linear-gradient(160deg, #fef9f3 0%, #fdf3e8 30%, #f8f0e8 60%, #fef9f3 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow-x: hidden;
+        }
+
+        /* Subtle background decoration */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -120px;
+            right: -120px;
+            width: 350px;
+            height: 350px;
+            background: radial-gradient(circle, rgba(232, 147, 124, 0.10) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        body::after {
+            content: '';
+            position: fixed;
+            bottom: -100px;
+            left: -100px;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(163, 184, 153, 0.12) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .game-container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Card styling */
+        .card {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 28px 24px;
+            box-shadow: var(--shadow);
+            transition: all var(--transition);
+            border: 1px solid rgba(180, 160, 140, 0.15);
+            position: relative;
+            overflow: hidden;
+        }
+        .card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent), var(--accent2), var(--green), var(--lavender));
+            opacity: 0.6;
+            border-radius: 3px 3px 0 0;
+        }
+
+        /* Header */
+        .game-header {
+            text-align: center;
+        }
+        .game-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text);
+            letter-spacing: -0.5px;
+            margin-bottom: 4px;
+        }
+        .game-subtitle {
+            font-size: 0.9rem;
+            color: var(--text-light);
+            font-weight: 400;
+        }
+        .phase-indicator {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-top: 8px;
+            transition: all 0.3s;
+        }
+        .phase-guessing {
+            background: #fef0eb;
+            color: #c97a65;
+        }
+        .phase-puzzle {
+            background: #eef4ea;
+            color: #7d9a6e;
+        }
+
+        /* Guessing phase */
+        .guess-display {
+            text-align: center;
+            font-size: 1rem;
+            color: var(--text-light);
+            margin-bottom: 6px;
+        }
+        .guess-range {
+            font-weight: 700;
+            color: var(--accent);
+            font-size: 1.4rem;
+            display: block;
+            margin: 4px 0;
+        }
+        .input-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .guess-input {
+            width: 120px;
+            padding: 14px 16px;
+            font-size: 1.4rem;
+            font-weight: 700;
+            text-align: center;
+            border: 2px solid #e5ddd4;
+            border-radius: var(--radius-sm);
+            background: #fffdf8;
+            color: var(--text);
+            font-family: var(--font);
+            transition: all 0.2s;
+            outline: none;
+            -moz-appearance: textfield;
+        }
+        .guess-input::-webkit-outer-spin-button,
+        .guess-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .guess-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 4px rgba(232, 147, 124, 0.12);
+        }
+        .btn {
+            padding: 12px 22px;
+            border-radius: 30px;
+            border: none;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            font-family: var(--font);
+            transition: all 0.2s;
+            letter-spacing: 0.3px;
+            position: relative;
+            overflow: hidden;
+        }
+        .btn:active {
+            transform: scale(0.95);
+            transition: transform 0.1s;
+        }
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+            box-shadow: 0 4px 14px rgba(232, 147, 124, 0.35);
+        }
+        .btn-primary:hover {
+            background: #d98270;
+            box-shadow: 0 6px 20px rgba(232, 147, 124, 0.45);
+            transform: translateY(-1px);
+        }
+        .btn-secondary {
+            background: #f5ede4;
+            color: var(--text);
+            border: 1.5px solid #e5ddd4;
+        }
+        .btn-secondary:hover {
+            background: #ede3d7;
+        }
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 0.85rem;
+            border-radius: 20px;
+        }
+        .btn-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            background: #f5ede4;
+            border: 1.5px solid #e5ddd4;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text);
+        }
+        .btn-icon:active {
+            background: #e5ddd4;
+            transform: scale(0.9);
+        }
+
+        /* Feedback message */
+        .feedback {
+            text-align: center;
+            font-weight: 600;
+            font-size: 1.05rem;
+            min-height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.3s;
+            padding: 4px 0;
+        }
+        .feedback.cold {
+            color: #7ba4c9;
+        }
+        .feedback.warm {
+            color: #d4a574;
+        }
+        .feedback.hot {
+            color: #e8937c;
+        }
+        .feedback.success {
+            color: #7d9a6e;
+        }
+
+        /* Attempts bar */
+        .attempts-bar {
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 8px 0;
+        }
+        .attempt-dot {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #f0e8dd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #b8a590;
+            transition: all 0.3s;
+        }
+        .attempt-dot.used {
+            background: #e8937c;
+            color: #fff;
+            animation: popIn 0.3s ease-out;
+        }
+        @keyframes popIn {
+            0% {
+                transform: scale(0.3);
+                opacity: 0;
+            }
+            70% {
+                transform: scale(1.2);
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        /* Share prompt */
+        .share-prompt {
+            background: #fef9f3;
+            border: 1.5px dashed #e5ddd4;
+            border-radius: var(--radius-sm);
+            padding: 14px 18px;
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--text-light);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            animation: fadeSlideIn 0.4s ease-out;
+        }
+        @keyframes fadeSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Puzzle grid */
+        .puzzle-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+        .puzzle-info {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+        .puzzle-stat {
+            background: #fdf8f3;
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid #e8ddd2;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text);
+        }
+        .puzzle-stat .label {
+            font-weight: 400;
+            color: var(--text-light);
+            font-size: 0.8rem;
+        }
+        .puzzle-stat .value {
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: var(--accent);
+        }
+        .puzzle-stat.target .value {
+            color: #d4a574;
+        }
+        .puzzle-stat.moves .value {
+            color: var(--green);
+        }
+        .puzzle-stat.warning .value {
+            color: #e8937c;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%,
+            100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .grid-wrapper {
+            position: relative;
+            background: #fdfaf6;
+            border-radius: var(--radius);
+            padding: 12px;
+            box-shadow: var(--shadow-lg);
+            border: 2px solid #e8ddd2;
+            touch-action: manipulation;
+        }
+        .grid-container {
+            display: grid;
+            gap: 3px;
+            transition: all 0.3s;
+        }
+        .cell {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.1rem;
+            cursor: default;
+            transition: all 0.2s;
+            position: relative;
+            background: #fffdf8;
+            border: 2px solid #ece4d8;
+            color: var(--text);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+        }
+        .cell.wall {
+            background: #c4b8a8;
+            border-color: #b0a392;
+            color: transparent;
+            cursor: not-allowed;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+        .cell.wall::after {
+            content: '╳';
+            color: #9a8b78;
+            font-size: 0.9rem;
+            opacity: 0.5;
+        }
+        .cell.player {
+            background: #fef0eb;
+            border-color: var(--accent);
+            border-width: 3px;
+            box-shadow: 0 0 0 6px rgba(232, 147, 124, 0.2);
+            z-index: 2;
+            animation: playerGlow 2s infinite;
+            color: #c97a65;
+            font-size: 1.3rem;
+        }
+        @keyframes playerGlow {
+            0%,
+            100% {
+                box-shadow: 0 0 0 6px rgba(232, 147, 124, 0.2);
+            }
+            50% {
+                box-shadow: 0 0 0 12px rgba(232, 147, 124, 0.08);
+            }
+        }
+        .cell.exit {
+            background: #fef9e8;
+            border-color: #d4a574;
+            border-width: 3px;
+            box-shadow: 0 0 0 6px rgba(212, 165, 116, 0.2);
+            font-size: 1.5rem;
+        }
+        .cell.visited {
+            background: #f9f5ef;
+            border-color: #e0d5c5;
+            opacity: 0.75;
+        }
+        .cell.visited::before {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #d4c8b4;
+            bottom: 4px;
+            right: 4px;
+            opacity: 0.6;
+        }
+
+        /* D-pad */
+        .dpad {
+            display: grid;
+            grid-template-areas:
+                '. up .'
+                'left . right'
+                '. down .';
+            gap: 6px;
+            justify-content: center;
+        }
+        .dpad-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 14px;
+            border: 2px solid #e5ddd4;
+            background: #fffdf8;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+            color: var(--text);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            -webkit-tap-highlight-color: transparent;
+        }
+        .dpad-btn:active {
+            background: #e5ddd4;
+            transform: scale(0.9);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+        .dpad-up {
+            grid-area: up;
+        }
+        .dpad-down {
+            grid-area: down;
+        }
+        .dpad-left {
+            grid-area: left;
+        }
+        .dpad-right {
+            grid-area: right;
+        }
+        .dpad-center {
+            grid-area: center;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: transparent;
+            pointer-events: none;
+        }
+        .dpad-grid {
+            display: grid;
+            grid-template-areas:
+                '. up .'
+                'left center right'
+                '. down .';
+            gap: 6px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Confetti */
+        .confetti-piece {
+            position: fixed;
+            pointer-events: none;
+            z-index: 100;
+            animation: confettiFall 1.5s ease-out forwards;
+            font-size: 1.5rem;
+        }
+        @keyframes confettiFall {
+            0% {
+                transform: translateY(-120px) rotate(0deg) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(105vh) rotate(720deg) scale(0.3);
+                opacity: 0;
+            }
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: #4a3728;
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            z-index: 200;
+            transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1.2);
+            pointer-events: none;
+            white-space: nowrap;
+        }
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* Celebration overlay */
+        .celebration {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 90;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .celebration.active {
+            opacity: 1;
+        }
+        .celebration-text {
+            font-size: 3rem;
+            animation: celebBounce 0.6s ease-out;
+            filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.2));
+        }
+        @keyframes celebBounce {
+            0% {
+                transform: scale(0);
+                opacity: 0;
+            }
+            60% {
+                transform: scale(1.3);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        /* Screen transitions */
+        .screen {
+            transition: opacity 0.4s, transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1.2);
+        }
+        .screen.hidden {
+            display: none;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        .screen.visible {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* High score */
+        .high-score-badge {
+            font-size: 0.75rem;
+            color: #d4a574;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        /* Responsive */
+        @media (max-width: 420px) {
+            .card {
+                padding: 20px 14px;
+            }
+            .game-title {
+                font-size: 1.5rem;
+            }
+            .btn {
+                padding: 10px 16px;
+                font-size: 0.9rem;
+            }
+            .cell {
+                font-size: 0.9rem;
+                border-radius: 8px;
+            }
+            .dpad-btn {
+                width: 42px;
+                height: 42px;
+                border-radius: 10px;
+                font-size: 1rem;
+            }
+            .puzzle-info {
+                gap: 8px;
+                font-size: 0.8rem;
+            }
+            .puzzle-stat {
+                padding: 6px 10px;
+            }
+            .puzzle-stat .value {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-container" id="gameContainer">
+        <!-- Phase 1: Guessing Screen -->
+        <div class="card screen visible" id="guessingScreen">
+            <div class="game-header">
+                <h1 class="game-title">🔢 Number Nook</h1>
+                <p class="game-subtitle">Find the secret number to unlock the puzzle realm</p>
+                <span class="phase-indicator phase-guessing" id="phaseBadge">🎯 Guessing Phase</span>
+            </div>
+            <div style="text-align:center;margin:12px 0;">
+                <span class="guess-display">I'm thinking of a number between</span>
+                <span class="guess-range" id="rangeDisplay">1 – 100</span>
+            </div>
+            <div class="input-row" style="margin:16px 0;">
+                <button class="btn-icon" id="btnMinus" aria-label="Decrease">−</button>
+                <input type="number" class="guess-input" id="guessInput" placeholder="?" min="1" max="100" aria-label="Your guess">
+                <button class="btn-icon" id="btnPlus" aria-label="Increase">+</button>
+            </div>
+            <div style="text-align:center;margin:10px 0;">
+                <button class="btn btn-primary" id="btnGuess">✨ Make Your Guess</button>
+            </div>
+            <div class="feedback" id="feedbackMsg"></div>
+            <div class="attempts-bar" id="attemptsBar"></div>
+            <div id="sharePromptContainer"></div>
+            <div style="text-align:center;margin-top:6px;">
+                <span class="high-score-badge" id="loopCountDisplay"></span>
+            </div>
+        </div>
+
+        <!-- Phase 2: Puzzle Screen -->
+        <div class="card screen hidden" id="puzzleScreen">
+            <div class="game-header">
+                <h1 class="game-title">🧩 Sum Path Maze</h1>
+                <p class="game-subtitle">Navigate to the exit with the exact target sum</p>
+                <span class="phase-indicator phase-puzzle" id="puzzlePhaseBadge">🌟 Puzzle Mode</span>
+            </div>
+            <div class="puzzle-info">
+                <div class="puzzle-stat target">
+                    <span class="label">🎯 Target Sum</span>
+                    <span class="value" id="targetSumDisplay">0</span>
+                </div>
+                <div class="puzzle-stat">
+                    <span class="label">📊 Your Sum</span>
+                    <span class="value" id="currentSumDisplay">0</span>
+                </div>
+                <div class="puzzle-stat moves" id="movesStat">
+                    <span class="label">👣 Moves</span>
+                    <span class="value" id="moveCountDisplay">0</span>
+                </div>
+                <div class="puzzle-stat" id="levelStat">
+                    <span class="label">🏆 Level</span>
+                    <span class="value" id="levelDisplay">1</span>
+                </div>
+                <div class="puzzle-stat">
+                    <span class="label">⭐ Score</span>
+                    <span class="value" id="puzzleScoreDisplay">0</span>
+                </div>
+            </div>
+            <div class="puzzle-area">
+                <div class="grid-wrapper" id="gridWrapper">
+                    <div class="grid-container" id="gridContainer"></div>
+                </div>
+                <div class="dpad-grid" id="dpadContainer">
+                    <button class="dpad-btn dpad-up" id="dpadUp" aria-label="Move up">▲</button>
+                    <button class="dpad-btn dpad-left" id="dpadLeft" aria-label="Move left">◀</button>
+                    <div class="dpad-center"></div>
+                    <button class="dpad-btn dpad-right" id="dpadRight" aria-label="Move right">▶</button>
+                    <button class="dpad-btn dpad-down" id="dpadDown" aria-label="Move down">▼</button>
+                </div>
+                <button class="btn btn-secondary btn-small" id="btnResetMaze" style="margin-top:4px;">
+                    🔄 Retry This Maze
+                </button>
+            </div>
+            <div class="feedback" id="puzzleFeedback"></div>
+            <div style="text-align:center;margin-top:4px;">
+                <span class="high-score-badge" id="puzzleHighScoreDisplay"></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+    <div class="celebration" id="celebrationOverlay">
+        <span class="celebration-text" id="celebrationEmoji"></span>
+    </div>
+
+    <script>
+        (function() {
+            // ──────────────────────────────────────
+            // DOM ELEMENTS
+            // ──────────────────────────────────────
+            const guessingScreen = document.getElementById('guessingScreen');
+            const puzzleScreen = document.getElementById('puzzleScreen');
+            const guessInput = document.getElementById('guessInput');
+            const btnGuess = document.getElementById('btnGuess');
+            const btnMinus = document.getElementById('btnMinus');
+            const btnPlus = document.getElementById('btnPlus');
+            const feedbackMsg = document.getElementById('feedbackMsg');
+            const attemptsBar = document.getElementById('attemptsBar');
+            const sharePromptContainer = document.getElementById('sharePromptContainer');
+            const rangeDisplay = document.getElementById('rangeDisplay');
+            const phaseBadge = document.getElementById('phaseBadge');
+            const loopCountDisplay = document.getElementById('loopCountDisplay');
+            const gridContainer = document.getElementById('gridContainer');
+            const targetSumDisplay = document.getElementById('targetSumDisplay');
+            const currentSumDisplay = document.getElementById('currentSumDisplay');
+            const moveCountDisplay = document.getElementById('moveCountDisplay');
+            const levelDisplay = document.getElementById('levelDisplay');
+            const puzzleScoreDisplay = document.getElementById('puzzleScoreDisplay');
+            const puzzleFeedback = document.getElementById('puzzleFeedback');
+            const puzzleHighScoreDisplay = document.getElementById('puzzleHighScoreDisplay');
+            const movesStat = document.getElementById('movesStat');
+            const levelStat = document.getElementById('levelStat');
+            const puzzlePhaseBadge = document.getElementById('puzzlePhaseBadge');
+            const btnResetMaze = document.getElementById('btnResetMaze');
+            const toast = document.getElementById('toast');
+            const celebrationOverlay = document.getElementById('celebrationOverlay');
+            const celebrationEmoji = document.getElementById('celebrationEmoji');
+
+            // ──────────────────────────────────────
+            // GAME STATE
+            // ──────────────────────────────────────
+            const state = {
+                // Guessing
+                targetNumber: 0,
+                minRange: 1,
+                maxRange: 100,
+                attempts: 0,
+                guessedCorrectly: false,
+                loopCount: 0,
+
+                // Puzzle
+                puzzleActive: false,
+                puzzleLevel: 1,
+                puzzleScore: 0,
+                puzzleHighScore: 0,
+                grid: [],
+                gridSize: 4,
+                playerRow: 0,
+                playerCol: 0,
+                exitRow: 3,
+                exitCol: 3,
+                currentSum: 0,
+                targetSum: 0,
+                moveCount: 0,
+                maxMoves: Infinity,
+                walls: new Set(),
+                visitedCells: new Set(),
+                shortestPathLength: 0,
+            };
+
+            // Load high score
+            const savedHighScore = localStorage.getItem('numberNook_puzzleHighScore');
+            if (savedHighScore !== null) {
+                state.puzzleHighScore = parseInt(savedHighScore, 10);
+            }
+            const savedLoopCount = localStorage.getItem('numberNook_loopCount');
+            if (savedLoopCount !== null) {
+                state.loopCount = parseInt(savedLoopCount, 10);
+                updateRangeForLoopCount();
+            }
+
+            // ──────────────────────────────────────
+            // TOAST & CELEBRATION
+            // ──────────────────────────────────────
+            let toastTimer = null;
+
+            function showToast(message, duration = 2200) {
+                if (toastTimer) clearTimeout(toastTimer);
+                toast.textContent = message;
+                toast.classList.add('show');
+                toastTimer = setTimeout(() => {
+                    toast.classList.remove('show');
+                    toastTimer = null;
+                }, duration);
+            }
+
+            function showCelebration(emoji, duration = 1200) {
+                celebrationEmoji.textContent = emoji;
+                celebrationOverlay.classList.add('active');
+                setTimeout(() => {
+                    celebrationOverlay.classList.remove('active');
+                }, duration);
+            }
+
+            function spawnConfetti(count = 40) {
+                const emojis = ['✨', '🌟', '💫', '🎉', '🎊', '⭐', '💖', '🔥', '🍀', '🎯'];
+                for (let i = 0; i < count; i++) {
+                    const piece = document.createElement('span');
+                    piece.className = 'confetti-piece';
+                    piece.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+                    piece.style.left = Math.random() * 100 + '%';
+                    piece.style.top = -(Math.random() * 60 + 20) + 'px';
+                    piece.style.animationDuration = (Math.random() * 1.5 + 1.2) + 's';
+                    piece.style.animationDelay = Math.random() * 0.5 + 's';
+                    piece.style.fontSize = (Math.random() * 1.5 + 1) + 'rem';
+                    document.body.appendChild(piece);
+                    setTimeout(() => piece.remove(), 2000);
+                }
+            }
+
+            // ──────────────────────────────────────
+            // SCREEN SWITCHING
+            // ──────────────────────────────────────
+            function switchToPuzzle() {
+                guessingScreen.classList.add('hidden');
+                guessingScreen.classList.remove('visible');
+                puzzleScreen.classList.remove('hidden');
+                puzzleScreen.classList.add('visible');
+                phaseBadge.textContent = '🎯 Guessing Phase';
+                puzzlePhaseBadge.textContent = '🌟 Puzzle Mode';
+                state.puzzleActive = true;
+                initPuzzle();
+                puzzleScreen.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
+            function switchToGuessing() {
+                puzzleScreen.classList.add('hidden');
+                puzzleScreen.classList.remove('visible');
+                guessingScreen.classList.remove('hidden');
+                guessingScreen.classList.add('visible');
+                phaseBadge.textContent = '🎯 Guessing Phase';
+                state.puzzleActive = false;
+                resetGuessingGame();
+                guessingScreen.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
+            // ──────────────────────────────────────
+            // GUESSING PHASE
+            // ──────────────────────────────────────
+            function updateRangeForLoopCount() {
+                const ranges = [
+                    { min: 1, max: 100 },
+                    { min: 1, max: 200 },
+                    { min: 1, max: 500 },
+                    { min: 1, max: 1000 },
+                ];
+                const idx = Math.min(state.loopCount, ranges.length - 1);
+                state.minRange = ranges[idx].min;
+                state.maxRange = ranges[idx].max;
+                rangeDisplay.textContent = `${state.minRange} – ${state.maxRange}`;
+                guessInput.min = state.minRange;
+                guessInput.max = state.maxRange;
+                if (state.loopCount > 0) {
+                    loopCountDisplay.textContent =
+                        `🔁 Loop ${state.loopCount + 1} · Range: ${state.minRange}–${state.maxRange}`;
+                } else {
+                    loopCountDisplay.textContent = '';
+                }
+            }
+
+            function resetGuessingGame() {
+                state.targetNumber =
+                    Math.floor(Math.random() * (state.maxRange - state.minRange + 1)) + state.minRange;
+                state.attempts = 0;
+                state.guessedCorrectly = false;
+                guessInput.value = '';
+                feedbackMsg.textContent = '';
+                feedbackMsg.className = 'feedback';
+                sharePromptContainer.innerHTML = '';
+                attemptsBar.innerHTML = '';
+                updateRangeForLoopCount();
+                // Create empty attempt dots
+                for (let i = 0; i < 10; i++) {
+                    const dot = document.createElement('span');
+                    dot.className = 'attempt-dot';
+                    dot.textContent = i + 1;
+                    attemptsBar.appendChild(dot);
+                }
+                guessInput.focus();
+            }
+
+            function getTemperatureMessage(diff, maxRange) {
+                const ratio = diff / maxRange;
+                if (diff === 0) return { msg: '🎯', cls: 'success' };
+                if (ratio < 0.03) return { msg: '🔥 BOILING HOT! So close!', cls: 'hot' };
+                if (ratio < 0.08) return { msg: '🫧 Very warm! Almost there!', cls: 'hot' };
+                if (ratio < 0.18) return { msg: '☀️ Getting warm...', cls: 'warm' };
+                if (ratio < 0.35) return { msg: '🌤️ Lukewarm, keep going!', cls: 'warm' };
+                if (ratio < 0.55) return { msg: '❄️ Chilly... not quite there', cls: 'cold' };
+                return { msg: '🧊 Freezing cold! Way off!', cls: 'cold' };
+            }
+
+            function handleGuess() {
+                if (state.guessedCorrectly) return;
+
+                const rawValue = guessInput.value.trim();
+                if (rawValue === '') {
+                    feedbackMsg.textContent = '👋 Enter a number first!';
+                    feedbackMsg.className = 'feedback warm';
+                    shakeElement(guessInput);
+                    return;
+                }
+                const guess = parseInt(rawValue, 10);
+                if (isNaN(guess) || guess < state.minRange || guess > state.maxRange) {
+                    feedbackMsg.textContent = `⚠️ Please enter a number between ${state.minRange} and ${state.maxRange}`;
+                    feedbackMsg.className = 'feedback warm';
+                    shakeElement(guessInput);
+                    return;
+                }
+
+                state.attempts++;
+                const diff = Math.abs(guess - state.targetNumber);
+                const { msg, cls } = getTemperatureMessage(diff, state.maxRange);
+
+                // Update attempt dots
+                const dots = attemptsBar.querySelectorAll('.attempt-dot');
+                if (state.attempts <= dots.length) {
+                    dots[state.attempts - 1].classList.add('used');
+                    dots[state.attempts - 1].textContent = guess;
+                }
+
+                if (guess === state.targetNumber) {
+                    // SUCCESS!
+                    state.guessedCorrectly = true;
+                    feedbackMsg.textContent = `🎉 YES! The number is ${state.targetNumber}! You got it in ${state.attempts} ${state.attempts === 1 ? 'try' : 'tries'}!`;
+                    feedbackMsg.className = 'feedback success';
+                    spawnConfetti(50);
+                    showCelebration('🎯');
+                    sharePromptContainer.innerHTML = '';
+                    guessInput.disabled = true;
+                    btnGuess.textContent = '🔓 Unlock Puzzle Mode!';
+                    btnGuess.className = 'btn btn-primary';
+                    btnGuess.onclick = () => {
+                        guessInput.disabled = false;
+                        btnGuess.textContent = '✨ Make Your Guess';
+                        btnGuess.onclick = handleGuess;
+                        switchToPuzzle();
+                    };
+                    phaseBadge.textContent = '✅ Solved!';
+                    phaseBadge.className = 'phase-indicator';
+                    phaseBadge.style.background = '#eef4ea';
+                    phaseBadge.style.color = '#7d9a6e';
+                } else {
+                    // Incorrect guess
+                    const hint = guess < state.targetNumber ? 'Higher! 📈' : 'Lower! 📉';
+                    feedbackMsg.textContent = `${msg} ${hint}`;
+                    feedbackMsg.className = `feedback ${cls}`;
+                    shakeElement(guessInput);
+
+                    // Show playful share prompt every 3-4 attempts
+                    if (state.attempts % 3 === 0 || state.attempts === 1) {
+                        showSharePrompt(guess);
+                    }
+                }
+
+                guessInput.value = '';
+                guessInput.focus();
+            }
+
+            function showSharePrompt(lastGuess) {
+                const hintDir = lastGuess < state.targetNumber ? 'higher' : 'lower';
+                const shareText = `🎯 I'm playing Number Nook! I guessed ${lastGuess} but it's ${hintDir}... The number is between ${state.minRange} and ${state.maxRange}. Think you can find it? Come play with me! 🌟`;
+                sharePromptContainer.innerHTML = `
+                    <div class="share-prompt">
+                        <span>😄 Not this time! Challenge a friend?</span>
+                        <button class="btn btn-secondary btn-small" id="btnShare">📋 Copy Challenge</button>
+                    </div>
+                `;
+                const btnShare = document.getElementById('btnShare');
+                if (btnShare) {
+                    btnShare.addEventListener('click', () => {
+                        navigator.clipboard.writeText(shareText).then(() => {
+                            showToast('📋 Challenge copied! Send it to a friend!');
+                        }).catch(() => {
+                            showToast('📋 ' + shareText.substring(0, 60) + '...');
+                        });
+                    });
+                }
+            }
+
+            function shakeElement(el) {
+                el.style.animation = 'none';
+                el.offsetHeight;
+                el.style.animation = 'shake 0.4s ease-out';
+                setTimeout(() => { el.style.animation = ''; }, 400);
+            }
+
+            // Add shake keyframes dynamically
+            const shakeStyle = document.createElement('style');
+            shakeStyle.textContent = `
+                @keyframes shake {
+                    0%,100% { transform: translateX(0); }
+                    20% { transform: translateX(-6px); }
+                    40% { transform: translateX(6px); }
+                    60% { transform: translateX(-4px); }
+                    80% { transform: translateX(4px); }
+                }
+            `;
+            document.head.appendChild(shakeStyle);
+
+            // ──────────────────────────────────────
+            // PUZZLE PHASE – MAZE GENERATION
+            // ──────────────────────────────────────
+            function getGridSizeForLevel(level) {
+                if (level <= 2) return 4;
+                if (level <= 5) return 5;
+                if (level <= 9) return 6;
+                if (level <= 14) return 7;
+                return 8;
+            }
+
+            function getWallDensityForLevel(level) {
+                if (level <= 2) return 0.08;
+                if (level <= 4) return 0.14;
+                if (level <= 7) return 0.20;
+                if (level <= 11) return 0.26;
+                if (level <= 16) return 0.30;
+                return 0.34;
+            }
+
+            function getMaxMovesForLevel(level, shortestPathLen) {
+                if (level <= 4) return Infinity;
+                if (level <= 7) return Math.max(shortestPathLen * 3, shortestPathLen + 8);
+                if (level <= 11) return Math.max(shortestPathLen * 2, shortestPathLen + 5);
+                if (level <= 16) return Math.max(Math.floor(shortestPathLen * 1.6), shortestPathLen + 3);
+                return Math.max(Math.floor(shortestPathLen * 1.3), shortestPathLen + 1);
+            }
+
+            function getNumberRangeForLevel(level) {
+                if (level <= 3) return { min: 1, max: 6 };
+                if (level <= 7) return { min: 1, max: 9 };
+                if (level <= 12) return { min: 2, max: 12 };
+                return { min: 3, max: 16 };
+            }
+
+            function generateMaze() {
+                const size = getGridSizeForLevel(state.puzzleLevel);
+                const wallDensity = getWallDensityForLevel(state.puzzleLevel);
+                const numRange = getNumberRangeForLevel(state.puzzleLevel);
+
+                state.gridSize = size;
+                state.exitRow = size - 1;
+                state.exitCol = size - 1;
+                state.playerRow = 0;
+                state.playerCol = 0;
+                state.currentSum = 0;
+                state.moveCount = 0;
+                state.visitedCells = new Set();
+                state.visitedCells.add('0,0');
+                state.walls = new Set();
+
+                // Generate grid numbers
+                const grid = [];
+                for (let r = 0; r < size; r++) {
+                    grid[r] = [];
+                    for (let c = 0; c < size; c++) {
+                        grid[r][c] =
+                            Math.floor(Math.random() * (numRange.max - numRange.min + 1)) + numRange.min;
+                    }
+                }
+
+                // Place walls (not on start or exit)
+                const totalCells = size * size;
+                const wallCount = Math.floor((totalCells - 2) * wallDensity);
+                const candidateCells = [];
+                for (let r = 0; r < size; r++) {
+                    for (let c = 0; c < size; c++) {
+                        if ((r === 0 && c === 0) || (r === size - 1 && c === size - 1)) continue;
+                        candidateCells.push({ r, c });
+                    }
+                }
+                // Shuffle
+                for (let i = candidateCells.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [candidateCells[i], candidateCells[j]] = [candidateCells[j], candidateCells[i]];
+                }
+                for (let i = 0; i < Math.min(wallCount, candidateCells.length); i++) {
+                    state.walls.add(`${candidateCells[i].r},${candidateCells[i].c}`);
+                }
+
+                // Check if a path exists from start to exit
+                if (!pathExists(0, 0, size - 1, size - 1, state.walls, size)) {
+                    // Remove some walls near a potential path to ensure connectivity
+                    const wallsToRemove = [];
+                    for (const wallKey of state.walls) {
+                        const [wr, wc] = wallKey.split(',').map(Number);
+                        // Remove walls that are near the diagonal
+                        const diagProgress = (wr + wc) / (2 * (size - 1));
+                        if (Math.random() < 0.5) {
+                            wallsToRemove.push(wallKey);
+                        }
+                        if (wallsToRemove.length >= Math.ceil(wallCount * 0.4)) break;
+                    }
+                    wallsToRemove.forEach(k => state.walls.delete(k));
+                    // If still no path, remove more
+                    if (!pathExists(0, 0, size - 1, size - 1, state.walls, size)) {
+                        const allWalls = [...state.walls];
+                        for (const wallKey of allWalls) {
+                            state.walls.delete(wallKey);
+                            if (pathExists(0, 0, size - 1, size - 1, state.walls, size)) break;
+                        }
+                    }
+                }
+
+                state.grid = grid;
+
+                // Find shortest path and set target sum
+                const shortestPath = findShortestPath(0, 0, size - 1, size - 1, state.walls, size);
+                state.shortestPathLength = shortestPath ? shortestPath.length - 1 : (size - 1) * 2;
+                if (shortestPath) {
+                    let sum = 0;
+                    for (const { r, c } of shortestPath) {
+                        sum += grid[r][c];
+                    }
+                    state.targetSum = sum;
+                } else {
+                    // Fallback
+                    state.targetSum = grid[0][0] + grid[size - 1][size - 1] + (size - 1) * 3;
+                }
+
+                // Set initial sum to start cell value
+                state.currentSum = state.grid[0][0];
+                state.maxMoves = getMaxMovesForLevel(state.puzzleLevel, state.shortestPathLength);
+
+                // Update displays
+                updatePuzzleDisplays();
+                renderGrid();
+                updatePuzzleFeedback('');
+            }
+
+            function pathExists(startR, startC, endR, endC, walls, size) {
+                const visited = new Set();
+                const queue = [{ r: startR, c: startC }];
+                visited.add(`${startR},${startC}`);
+                while (queue.length > 0) {
+                    const { r, c } = queue.shift();
+                    if (r === endR && c === endC) return true;
+                    const neighbors = [
+                        { r: r - 1, c }, { r: r + 1, c }, { r, c: c - 1 }, { r, c: c + 1 }
+                    ];
+                    for (const n of neighbors) {
+                        const key = `${n.r},${n.c}`;
+                        if (n.r >= 0 && n.r < size && n.c >= 0 && n.c < size &&
+                            !walls.has(key) && !visited.has(key)) {
+                            visited.add(key);
+                            queue.push(n);
+                        }
+                    }
+                }
+                return false;
+            }
+
+            function findShortestPath(startR, startC, endR, endC, walls, size) {
+                const visited = new Set();
+                const queue = [{ r: startR, c: startC, path: [{ r: startR, c: startC }] }];
+                visited.add(`${startR},${startC}`);
+                while (queue.length > 0) {
+                    const { r, c, path } = queue.shift();
+                    if (r === endR && c === endC) return path;
+                    const neighbors = [
+                        { r: r - 1, c }, { r: r + 1, c }, { r, c: c - 1 }, { r, c: c + 1 }
+                    ];
+                    for (const n of neighbors) {
+                        const key = `${n.r},${n.c}`;
+                        if (n.r >= 0 && n.r < size && n.c >= 0 && n.c < size &&
+                            !walls.has(key) && !visited.has(key)) {
+                            visited.add(key);
+                            queue.push({ r: n.r, c: n.c, path: [...path, { r: n.r, c: n.c }] });
+                        }
+                    }
+                }
+                return null;
+            }
+
+            // ──────────────────────────────────────
+            // PUZZLE PHASE – RENDERING
+            // ──────────────────────────────────────
+            function renderGrid() {
+                gridContainer.innerHTML = '';
+                gridContainer.style.gridTemplateColumns = `repeat(${state.gridSize}, var(--cell-size))`;
+                gridContainer.style.gridTemplateRows = `repeat(${state.gridSize}, var(--cell-size))`;
+
+                for (let r = 0; r < state.gridSize; r++) {
+                    for (let c = 0; c < state.gridSize; c++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+                        const key = `${r},${c}`;
+
+                        if (state.walls.has(key)) {
+                            cell.classList.add('wall');
+                        } else {
+                            cell.textContent = state.grid[r][c];
+                        }
+
+                        if (r === state.playerRow && c === state.playerCol) {
+                            cell.classList.add('player');
+                            cell.textContent = state.grid[r][c];
+                        }
+                        if (r === state.exitRow && c === state.exitCol && !(r === state.playerRow && c ===
+                                state.playerCol)) {
+                            cell.classList.add('exit');
+                            cell.textContent = '🏁';
+                        }
+                        if (state.visitedCells.has(key) && !(r === state.playerRow && c === state.playerCol) && !(r ===
+                                state.exitRow && c === state.exitCol)) {
+                            cell.classList.add('visited');
+                        }
+                        if (r === state.playerRow && c === state.playerCol && r === state.exitRow && c === state
+                            .exitCol) {
+                            cell.textContent = state.grid[r][c];
+                            cell.classList.add('exit');
+                        }
+
+                        gridContainer.appendChild(cell);
+                    }
+                }
+                updatePuzzleDisplays();
+            }
+
+            function updatePuzzleDisplays() {
+                targetSumDisplay.textContent = state.targetSum;
+                currentSumDisplay.textContent = state.currentSum;
+                moveCountDisplay.textContent = state.moveCount;
+                levelDisplay.textContent = state.puzzleLevel;
+                puzzleScoreDisplay.textContent = state.puzzleScore;
+
+                // Update max moves display
+                if (state.maxMoves === Infinity) {
+                    movesStat.classList.remove('warning');
+                    moveCountDisplay.textContent = state.moveCount;
+                } else {
+                    const remaining = state.maxMoves - state.moveCount;
+                    moveCountDisplay.textContent = `${state.moveCount}/${state.maxMoves}`;
+                    if (remaining <= 3 && remaining >= 0) {
+                        movesStat.classList.add('warning');
+                    } else {
+                        movesStat.classList.remove('warning');
+                    }
+                }
+
+                puzzleHighScoreDisplay.textContent =
+                    state.puzzleHighScore > 0 ? `🏅 Best Score: ${state.puzzleHighScore}` : '';
+            }
+
+            function updatePuzzleFeedback(message) {
+                puzzleFeedback.textContent = message;
+                if (message.includes('🎉') || message.includes('✨')) {
+                    puzzleFeedback.className = 'feedback success';
+                } else if (message.includes('⚠️') || message.includes('😅')) {
+                    puzzleFeedback.className = 'feedback hot';
+                } else if (message.includes('💡')) {
+                    puzzleFeedback.className = 'feedback warm';
+                } else {
+                    puzzleFeedback.className = 'feedback';
+                }
+            }
+
+            // ──────────────────────────────────────
+            // PUZZLE PHASE – MOVEMENT
+            // ──────────────────────────────────────
+            function movePlayer(dr, dc) {
+                if (!state.puzzleActive) return;
+
+                const newRow = state.playerRow + dr;
+                const newCol = state.playerCol + dc;
+                const key = `${newRow},${newCol}`;
+
+                // Check bounds
+                if (newRow < 0 || newRow >= state.gridSize || newCol < 0 || newCol >= state.gridSize) {
+                    updatePuzzleFeedback('🧱 Edge of the maze!');
+                    return;
+                }
+
+                // Check wall
+                if (state.walls.has(key)) {
+                    updatePuzzleFeedback('🧱 That\'s a wall! Find another way.');
+                    shakeElement(gridContainer);
+                    return;
+                }
+
+                // Check move limit
+                if (state.maxMoves !== Infinity && state.moveCount >= state.maxMoves) {
+                    handlePuzzleFailure();
+                    return;
+                }
+
+                // Move player
+                state.playerRow = newRow;
+                state.playerCol = newCol;
+                state.currentSum += state.grid[newRow][newCol];
+                state.moveCount++;
+                state.visitedCells.add(key);
+
+                renderGrid();
+
+                // Check if player reached exit
+                if (newRow === state.exitRow && newCol === state.exitCol) {
+                    if (state.currentSum === state.targetSum) {
+                        handlePuzzleSuccess();
+                    } else {
+                        const diff = state.currentSum - state.targetSum;
+                        const hint = diff > 0 ? 'too high' : 'too low';
+                        updatePuzzleFeedback(
+                            `🚪 You reached the exit, but your sum is ${state.currentSum} (${hint} by ${Math.abs(diff)}). Target: ${state.targetSum}. Keep exploring!`
+                        );
+                        // Allow player to step off the exit
+                    }
+                } else {
+                    updatePuzzleFeedback('');
+                }
+
+                // Check move limit warning
+                if (state.maxMoves !== Infinity) {
+                    const remaining = state.maxMoves - state.moveCount;
+                    if (remaining <= 3 && remaining > 0) {
+                        updatePuzzleFeedback(`⚠️ Only ${remaining} move${remaining === 1 ? '' : 's'} left! Choose wisely...`);
+                    }
+                    if (remaining <= 0 && !(state.playerRow === state.exitRow && state.playerCol === state.exitCol &&
+                            state.currentSum === state.targetSum)) {
+                        handlePuzzleFailure();
+                    }
+                }
+            }
+
+            function handlePuzzleSuccess() {
+                state.puzzleActive = false;
+                const basePoints = 100;
+                const levelBonus = state.puzzleLevel * 25;
+                const moveEfficiency = state.maxMoves !== Infinity ?
+                    Math.max(0, Math.floor((state.maxMoves - state.moveCount) / state.maxMoves * 50)) :
+                    30;
+                const roundScore = basePoints + levelBonus + moveEfficiency;
+
+                state.puzzleScore += roundScore;
+                state.puzzleLevel++;
+
+                if (state.puzzleScore > state.puzzleHighScore) {
+                    state.puzzleHighScore = state.puzzleScore;
+                    localStorage.setItem('numberNook_puzzleHighScore', state.puzzleHighScore);
+                }
+
+                spawnConfetti(35);
+                showCelebration('✨');
+                updatePuzzleFeedback(
+                    `🎉 Maze complete! +${roundScore} points! Sum matched perfectly: ${state.currentSum}. Next level...`);
+                puzzleScoreDisplay.textContent = state.puzzleScore;
+                puzzleHighScoreDisplay.textContent =
+                    state.puzzleHighScore > 0 ? `🏅 Best Score: ${state.puzzleHighScore}` : '';
+
+                // Brief delay before next maze
+                setTimeout(() => {
+                    state.puzzleActive = true;
+                    generateMaze();
+                    renderGrid();
+                    updatePuzzleFeedback('');
+                    gridContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 1200);
+            }
+
+            function handlePuzzleFailure() {
+                state.puzzleActive = false;
+                if (state.puzzleScore > state.puzzleHighScore) {
+                    state.puzzleHighScore = state.puzzleScore;
+                    localStorage.setItem('numberNook_puzzleHighScore', state.puzzleHighScore);
+                }
+                updatePuzzleFeedback(
+                    `😅 Out of moves! You scored ${state.puzzleScore} points across ${state.puzzleLevel - 1} maze${state.puzzleLevel - 1 === 1 ? '' : 's'}. Returning to the guessing game...`
+                );
+                puzzleHighScoreDisplay.textContent =
+                    state.puzzleHighScore > 0 ? `🏅 Best Score: ${state.puzzleHighScore}` : '';
+
+                setTimeout(() => {
+                    state.loopCount++;
+                    localStorage.setItem('numberNook_loopCount', state.loopCount);
+                    updateRangeForLoopCount();
+                    state.puzzleScore = 0;
+                    state.puzzleLevel = 1;
+                    state.maxMoves = Infinity;
+                    switchToGuessing();
+                }, 2000);
+            }
+
+            function resetCurrentMaze() {
+                if (!state.puzzleActive) return;
+                state.playerRow = 0;
+                state.playerCol = 0;
+                state.currentSum = state.grid[0][0];
+                state.moveCount = 0;
+                state.visitedCells = new Set();
+                state.visitedCells.add('0,0');
+                renderGrid();
+                updatePuzzleFeedback('🔄 Maze reset! Try a different path.');
+            }
+
+            function initPuzzle() {
+                state.puzzleLevel = 1;
+                state.puzzleScore = 0;
+                state.maxMoves = Infinity;
+                state.puzzleActive = true;
+                generateMaze();
+                renderGrid();
+                updatePuzzleFeedback('💡 Navigate from top-left to bottom-right. Match the target sum! Use arrow keys or the D-pad.');
+                puzzleScoreDisplay.textContent = '0';
+                puzzleHighScoreDisplay.textContent =
+                    state.puzzleHighScore > 0 ? `🏅 Best Score: ${state.puzzleHighScore}` : '';
+            }
+
+            // ──────────────────────────────────────
+            // EVENT LISTENERS
+            // ──────────────────────────────────────
+            btnGuess.addEventListener('click', handleGuess);
+            guessInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleGuess();
+                }
+            });
+
+            btnMinus.addEventListener('click', () => {
+                const current = parseInt(guessInput.value) || Math.floor((state.minRange + state.maxRange) / 2);
+                const newVal = Math.max(state.minRange, current - 1);
+                guessInput.value = newVal;
+                guessInput.focus();
+            });
+            btnPlus.addEventListener('click', () => {
+                const current = parseInt(guessInput.value) || Math.floor((state.minRange + state.maxRange) / 2);
+                const newVal = Math.min(state.maxRange, current + 1);
+                guessInput.value = newVal;
+                guessInput.focus();
+            });
+
+            // D-pad buttons
+            document.getElementById('dpadUp').addEventListener('click', () => movePlayer(-1, 0));
+            document.getElementById('dpadDown').addEventListener('click', () => movePlayer(1, 0));
+            document.getElementById('dpadLeft').addEventListener('click', () => movePlayer(0, -1));
+            document.getElementById('dpadRight').addEventListener('click', () => movePlayer(0, 1));
+
+            // Keyboard controls
+            document.addEventListener('keydown', (e) => {
+                if (!state.puzzleActive) return;
+                switch (e.key) {
+                    case 'ArrowUp':
+                    case 'w':
+                    case 'W':
+                        e.preventDefault();
+                        movePlayer(-1, 0);
+                        break;
+                    case 'ArrowDown':
+                    case 's':
+                    case 'S':
+                        e.preventDefault();
+                        movePlayer(1, 0);
+                        break;
+                    case 'ArrowLeft':
+                    case 'a':
+                    case 'A':
+                        e.preventDefault();
+                        movePlayer(0, -1);
+                        break;
+                    case 'ArrowRight':
+                    case 'd':
+                    case 'D':
+                        e.preventDefault();
+                        movePlayer(0, 1);
+                        break;
+                }
+            });
+
+            // Swipe support on grid
+            let touchStartX = 0;
+            let touchStartY = 0;
+            const gridWrapper = document.getElementById('gridWrapper');
+            gridWrapper.addEventListener('touchstart', (e) => {
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+            }, { passive: true });
+            gridWrapper.addEventListener('touchend', (e) => {
+                if (!state.puzzleActive) return;
+                const dx = (e.changedTouches[0]?.clientX || touchStartX) - touchStartX;
+                const dy = (e.changedTouches[0]?.clientY || touchStartY) - touchStartY;
+                const threshold = 30;
+                if (Math.abs(dx) < threshold && Math.abs(dy) < threshold) return;
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    movePlayer(0, dx > 0 ? 1 : -1);
+                } else {
+                    movePlayer(dy > 0 ? 1 : -1, 0);
+                }
+            });
+
+            btnResetMaze.addEventListener('click', resetCurrentMaze);
+
+            // ──────────────────────────────────────
+            // INITIALIZATION
+            // ──────────────────────────────────────
+            function init() {
+                updateRangeForLoopCount();
+                resetGuessingGame();
+                guessingScreen.classList.add('visible');
+                guessingScreen.classList.remove('hidden');
+                puzzleScreen.classList.add('hidden');
+                puzzleScreen.classList.remove('visible');
+                guessInput.focus();
+                if (state.puzzleHighScore > 0) {
+                    puzzleHighScoreDisplay.textContent = `🏅 Best Score: ${state.puzzleHighScore}`;
+                }
+            }
+
+            init();
+            console.log('🏠 Number Nook is ready! Guess the number to unlock the Sum Path Maze puzzle.');
+            console.log('💡 Tip: Use arrow keys, WASD, or the on-screen D-pad in puzzle mode.');
+            console.log('📱 Swipe on the maze grid for mobile play!');
+        })();
+    </script>
+</body>
+</html>
